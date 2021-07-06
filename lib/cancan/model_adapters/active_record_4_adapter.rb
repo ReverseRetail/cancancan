@@ -6,6 +6,10 @@ module CanCan
         model_class <= ActiveRecord::Base
       end
 
+      def self.version_greater_or_equal?(version)
+        Gem::Version.new(ActiveRecord.version).release >= Gem::Version.new(version)
+      end
+
       # TODO: this should be private
       def self.override_condition_matching?(subject, name, _value)
         # ActiveRecord introduced enums in version 4.1.
