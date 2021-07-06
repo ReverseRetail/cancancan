@@ -67,14 +67,18 @@ module CanCan
         table_metadata = ActiveRecord::TableMetadata.new(@model_class, table)
         predicate_builder = ActiveRecord::PredicateBuilder.new(table_metadata)
 
-        conditions = predicate_builder.resolve_column_aliases(conditions)
-        conditions = @model_class.send(:expand_hash_conditions_for_aggregates, conditions)
+        predicate_builder.build_from_hash(conditions.stringify_keys).map { |b| visit_nodes(b) }.join(' AND ')
+      end
 
-        conditions.stringify_keys!
-
-        predicate_builder.build_from_hash(conditions).map do |b|
-          @model_class.send(:connection).visitor.compile b
-        end.join(' AND ')
+      def visit_nodes(node)
+        # Rails 5.2 adds a BindParam node that prevents the visitor method from properly compiling the SQL query
+        if self.class.version_greater_or_equal?('5.2.0')
+          connection = @model_class.send(:connection)
+          collector = Arel::Collectors::SubstituteBinds.new(connection, Arel::Collectors::SQLString.new)
+          connection.visitor.accept(node, collector).value
+        else
+          @model_class.send(:connection).visitor.compile(node)
+        end
       end
     end
   end
